@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  # 1. Servidor Web (Nginx Interno del proyecto)
+  webserver:
+    image: nginx:alpine
+    container_name: nginx_server
+    restart: unless-stopped
+    # ❌ ELIMINADO: ports: - "80:80". Ahora es privado.
+    volumes:
+      - ./:/var/www/html
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - api-app
+    networks:
+      - red_global # Conecta este Nginx interno con el Proxy Inverso
+      - default    # Mantiene la conexión interna con 'api-app' y 'db'
+
+  # 2. Aplicación Backend (Laravel)
+  api-app:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+    image: mi-api-laravel
+    container_name: laravel_api
+    restart: unless-stopped
+    volumes:
+      - ./:/var/www/html
+    depends_on:
+      - db
+
+  # 3. Base de Datos (MySQL)
+  db:
+    image: mysql:8.0
+    container_name: mysql_db
+    restart: unless-stopped
+    ports:
+      - "3307:3306"
+    environment:
+      MYSQL_DATABASE: mi_app_db
+      MYSQL_ROOT_PASSWORD: lunita
+      MYSQL_USER: app_user
+      MYSQL_PASSWORD: app_pass
+    volumes:
+      - db_data:/var/lib/mysql
+
+volumes:
+  db_data:
+
+# ✔️ AÑADIDO: Declarar la red global al final del archivo
+networks:
+  red_global:
+    external: true
